@@ -7,7 +7,7 @@ description: >
   Supports Japanese file names and content.
 disable-model-invocation: false
 user-invocable: true
-allowed-tools: Read, Grep, Bash, Write, Edit, Glob
+allowed-tools: Read, Grep, Write, Edit, Glob
 argument-hint: [command] [options]
 context: fork
 ---
@@ -54,25 +54,19 @@ Before executing ANY command, validate `--vault-path`, `--scope`, `--target`, `-
 
 ### Sensitive file denylist
 
-NEVER read, grep, or output content from files matching these patterns, even if inside the vault:
-`*.pem`, `*.key`, `.env*`, `credentials*`, `*.p12`, `.ssh/*`, `*secret*`, `*password*`, `*.pfx`
-
-If a denylist match is encountered, skip silently and do not include in any output.
+Skip files matching these patterns silently (do not read, grep, or include in output):
+extensions `.pem`, `.key`, `.p12`, `.pfx`, and filenames starting with `.env`.
 
 ### Query sanitization
 
-For `--query` input (context command): strip `/`, `..`, and escape regex metacharacters (`.*+?^${}()|[]\`) before embedding in Grep/Glob patterns.
+For `--query` input (context command): strip `/`, `..`, and escape regex metacharacters before embedding in Grep/Glob patterns.
 
-### Bash command allowlist
+### Tool restrictions
 
-Only the following Bash commands are permitted:
-- `find PATH -name "*.md" ... | wc -l` (file counting)
-- `find PATH -type d ... | wc -l` (folder counting)
-- `stat -f "%Sm" -t "%Y-%m-%d" FILE` (macOS file date)
-- `stat -c "%y" FILE | cut -d' ' -f1` (Linux file date)
-- `ls -d PATH/*/` (folder listing)
-
-Any other Bash usage is prohibited.
+This skill does NOT use Bash. All file operations use Glob (discovery), Grep (search),
+Read (content), Write/Edit (MOC generation). File metadata (modification dates) is
+extracted by reading the first lines of each file for date patterns in the filename
+(e.g., `YYYYMMDD_` prefix) or frontmatter `date:` field.
 
 ---
 
@@ -87,13 +81,11 @@ Scan vault folder structure to depth N and produce a structure report.
 1. **Validate vault**: `Glob: ${VAULT_PATH}/**/*.md`. If 0 files found, error: "No markdown files found. This may not be an Obsidian vault."
 
 2. **Collect folder stats** for each top-level folder up to `--depth`:
-```bash
-find "${VAULT_PATH}/FOLDER" -name "*.md" -not -path "*/.obsidian/*" | wc -l
-find "${VAULT_PATH}/FOLDER" -type d -not -path "*/.obsidian/*" | wc -l
-```
+   - File count: `Glob: ${VAULT_PATH}/FOLDER/**/*.md` then count results
+   - Subfolder count: `Glob: ${VAULT_PATH}/FOLDER/*/` then count results
 
 3. **Detect methodology**:
-   - PARA: `ls -d "${VAULT_PATH}"/[0-9][0-9]_*/ 2>/dev/null` -- look for `*Inbox*`, `*Memo*`, `*Project*`, `*Output*`, `*Memory*`, `*Archive*` patterns
+   - PARA: `Glob: ${VAULT_PATH}/[0-9][0-9]_*/` -- look for `*Inbox*`, `*Memo*`, `*Project*`, `*Output*`, `*Memory*`, `*Archive*` patterns
    - Zettelkasten: `Grep: pattern="^[0-9]{8,14}" --glob="*.md" --output_mode=count`
 
 4. **Compute health indicators**:

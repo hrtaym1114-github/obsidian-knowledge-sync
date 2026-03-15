@@ -122,14 +122,10 @@ Extract the display title for each note in this priority order:
 3. Filename without `.md` extension -> use as title
 
 ### Note Date
-The date shown in parentheses `(YYYY-MM-DD)` is the file's last-modified date.
-Obtain it via:
-```bash
-# macOS
-stat -f "%Sm" -t "%Y-%m-%d" "filepath"
-# Linux
-stat -c "%y" "filepath" | cut -d' ' -f1
-```
+The date shown in parentheses `(YYYY-MM-DD)` is extracted from:
+1. Filename date prefix (e.g., `20260315_` -> `2026-03-15`)
+2. YAML frontmatter `date:` field
+3. If neither available, use today's date
 
 ### Related MOC Discovery
 To populate the "Related MOC" section:
